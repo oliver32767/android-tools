@@ -4,16 +4,18 @@ Created on Oct 12, 2011
 @author: obartley
 '''
 
-from com.android.monkeyrunner import MonkeyRunner, MonkeyDevice
-from time import sleep
+#from com.android.monkeyrunner import MonkeyRunner
 from sys import exit
-from monkeytools import devicePicker
+from monkeytools import devicePicker, EvilMonkey, MonkeyRunner
+
 
 deviceID = devicePicker()
-    
+
+dev = EvilMonkey(deviceID)
+
 startComponent = 'com.paypal.android.p2pmobile/.activity.GridLauncherActivity'
 
-dev = MonkeyRunner.waitForConnection(10, deviceID)
+
 
 if (dev == None):
     print("Couldn't get a reference to a device")
@@ -29,69 +31,40 @@ userMobile = testUSID[-4:].rjust(4, '0')
 userMobile = MonkeyRunner.input(message = "Enter the new user's phone number:", initialValue = '503467' + userMobile)
 
 
-dev.press('KEYCODE_DPAD_DOWN', MonkeyDevice.DOWN_AND_UP)
-dev.press('KEYCODE_DPAD_DOWN', MonkeyDevice.DOWN_AND_UP)
-dev.press('KEYCODE_DPAD_DOWN', MonkeyDevice.DOWN_AND_UP)
-dev.press('KEYCODE_DPAD_CENTER', MonkeyDevice.DOWN_AND_UP)
-sleep(1)
+dev.sequence('dddc..')
 
 # Page one of create user
 dev.type(userEmail)
-dev.press('KEYCODE_DPAD_DOWN', MonkeyDevice.DOWN_AND_UP)
+dev.sequence('d')
 dev.type(userPassword)
-dev.press('KEYCODE_DPAD_DOWN', MonkeyDevice.DOWN_AND_UP)
+dev.sequence('d')
 dev.type(userPassword)
-dev.press('KEYCODE_DPAD_DOWN', MonkeyDevice.DOWN_AND_UP)
-#  country selector
-dev.press('KEYCODE_DPAD_DOWN', MonkeyDevice.DOWN_AND_UP)
-dev.press('KEYCODE_DPAD_CENTER', MonkeyDevice.DOWN_AND_UP)
-sleep(3)
+dev.sequence('ddc...')
 
 # Page two
 dev.type('Chuck')
-dev.press('KEYCODE_DPAD_DOWN', MonkeyDevice.DOWN_AND_UP)
+dev.sequence('d')
 dev.type('Q')
-dev.press('KEYCODE_DPAD_DOWN', MonkeyDevice.DOWN_AND_UP)
+dev.sequence('d')
 dev.type('Testa')
-
-dev.press('KEYCODE_DPAD_DOWN', MonkeyDevice.DOWN_AND_UP)
+dev.sequence('d')
 dev.type(userMobile)
-
-dev.press('KEYCODE_DPAD_DOWN', MonkeyDevice.DOWN_AND_UP)
+dev.sequence('d')
 
 #address fields
-dev.type( testUSID )
-dev.press('KEYCODE_SPACE', MonkeyDevice.DOWN_AND_UP)
-dev.type('Foobar')
-dev.press('KEYCODE_SPACE', MonkeyDevice.DOWN_AND_UP)
-dev.type('Street')
-
-dev.press('KEYCODE_DPAD_DOWN', MonkeyDevice.DOWN_AND_UP)
-dev.type ( 'Apartment')
-dev.press('KEYCODE_SPACE', MonkeyDevice.DOWN_AND_UP)
-dev.type ( '#' + testUSID[-1:] )
-
-dev.press('KEYCODE_DPAD_DOWN', MonkeyDevice.DOWN_AND_UP)
+dev.type( testUSID + ' Foobar Street')
+dev.sequence('d')
+dev.type ( 'Apartment #' + testUSID[-1:])
+dev.sequence('d')
 dev.type('Portland')
-
 #end address fields
 
 
-dev.press('KEYCODE_DPAD_DOWN', MonkeyDevice.DOWN_AND_UP)
-dev.press('KEYCODE_DPAD_CENTER', MonkeyDevice.DOWN_AND_UP)
+dev.sequence('dc')
 #OR = state #46
-for i in range(46):
-    dev.press('KEYCODE_DPAD_DOWN', MonkeyDevice.DOWN_AND_UP)
-dev.press('KEYCODE_DPAD_CENTER', MonkeyDevice.DOWN_AND_UP)
-sleep(1)
-dev.press('KEYCODE_DPAD_DOWN', MonkeyDevice.DOWN_AND_UP)
+#for i in range(46):
+#    dev.press('KEYCODE_DPAD_DOWN', MonkeyDevice.DOWN_AND_UP)
+dev.sequence('d', 46)
+dev.sequence('c.d')
 dev.type('97205')
-dev.press('KEYCODE_DPAD_DOWN', MonkeyDevice.DOWN_AND_UP)
-dev.press('KEYCODE_DPAD_CENTER', MonkeyDevice.DOWN_AND_UP)
-dev.press('KEYCODE_DPAD_DOWN', MonkeyDevice.DOWN_AND_UP)
-dev.press('KEYCODE_DPAD_DOWN', MonkeyDevice.DOWN_AND_UP)
-dev.press('KEYCODE_DPAD_DOWN', MonkeyDevice.DOWN_AND_UP)
-dev.press('KEYCODE_DPAD_DOWN', MonkeyDevice.DOWN_AND_UP)
-dev.press('KEYCODE_DPAD_DOWN', MonkeyDevice.DOWN_AND_UP)
-dev.press('KEYCODE_DPAD_DOWN', MonkeyDevice.DOWN_AND_UP)
-dev.press('KEYCODE_DPAD_DOWN', MonkeyDevice.DOWN_AND_UP)
+dev.sequence('dcddddddd')
