@@ -1,0 +1,124 @@
+#!/bin/bash
+
+# stoat - Serial To Asset Tag
+# This is a simple tool which, based on flags parses a device list in the form:
+# XXXXXX:YYYYYYYYYYYYYYY*:Name
+# where X = CPS asset tag
+# Y = device serial number as reported by adb
+# Name is a human readable device name
+
+# Point the variable $DEVLIST to your copy of the device list (which is available in the Android p2p dropbox)
+# better help will come, but for now the options are outlined in comments at each case element
+# note: options will NOT stack, .e.g. -ns is NOT a valid argument, use -n -s separatley.
+
+# basic usage:
+# stoat 935 
+#      will return the device serial number associated with asset tag 000935
+# stoat -s 0A3A9F3912017019
+#      return the asset tag associated with the serial number passed. Supports partial matching, so -s 17019 would work the same
+# stoat -n -s 17019
+#      return the human readable name assosiated with the serial number matching 17019
+
+# import config
+#DEVLIST - location of devices.list file
+source $HOME/.android-tools.conf
+
+stoat-adb(){
+# this function wraps adb and is called when adb is passed as an argument with the remaining args
+if [[ "$1" == "devices" ]]; then
+        while read -r line; do
+                SERIAL="$(stoat -s $line)"
+		echo -n $SERIAL
+		if [[ "${SERIAL:0:7}" == "unknown" ]]; then
+			echo # add a newline to previous -n
+		else
+			# eliminate the double error messages
+	                echo -e "\t$(stoat -n -s $line)"
+		fi
+        done <<< "$(adb devices | grep 'device$' | sed 's/ *device//g')"
+        exit 0
+fi
+if [[ "$1" == "-t" ]]; then
+        # user passed an asset tag
+        shift
+        DEVICE=`stoat "$1"`
+        if [[ "$DEVICE" == "" ]]; then
+                echo "unknown device: $1" >&2
+                exit 1
+        fi
+        shift
+        adb -s $DEVICE $@
+        exit 0
+fi
+
+adb $@
+exit 0
+}
+
+
+for arg in $@; do
+	case $arg in
+	"adb")
+		shift
+		stoat-adb $@
+		exit $?
+		;;
+	"-l") # list all devices in devices.list
+		cat "$DEVLIST"
+		exit 0
+		;;
+	"-n") # retrieve name from instead of tag/serial
+		HUMAN_READABLE="true"
+		shift
+		;;
+	"-s") # get the tag number from a serial
+		SERIAL="true"
+		shift
+		;;
+	"-a") # add
+		shift
+		echo "Adding $@ to $DEVLIST"
+		echo "$@" >> "$DEVLIST"
+		exit 0
+		;;
+	"-f") # fix DEVLIST file
+		echo "Sorting $DEVLIST"
+		sort -k1g "$DEVLIST" > "$DEVLIST.tmp"
+		mv "$DEVLIST.tmp" "$DEVLIST"
+		exit 0
+		;;
+	"-e") # edit DEVLIST
+		if [[ "$EDITOR" == "" ]]; then
+			EDITOR="nano"
+		fi
+		exec $EDITOR "$DEVLIST"
+		exit 0
+		;;
+	*)
+		break
+		;;
+	esac
+done
+if [[ "$SERIAL" == "true" ]]; then
+	# assume that $1 is a serial
+	if [[ "$HUMAN_READABLE" == "true" ]]; then
+		FOUND=`grep -i -m 1 "^[[:digit:]]*:[[:alnum:]]*$1" "$DEVLIST" | cut -d':' -f3`
+	else
+		FOUND=`grep -i -m 1 "^[[:digit:]]*:[[:alnum:]]*$1" "$DEVLIST" | cut -d':' -f1`
+	fi
+else
+	# assume that $1 is a tag
+	if [[ "$HUMAN_READABLE" == "true" ]]; then
+		FOUND=`grep -m 1 "^[0]*$1" "$DEVLIST" | cut -d':' -f3`
+	else	
+		FOUND=`grep -m 1 "^[0]*$1" "$DEVLIST" | cut -d':' -f2`
+	fi
+fi
+	if [[ "$FOUND" == "" ]]; then
+	echo "unknown device: $1" >&2
+	exit 1
+else
+	echo $FOUND
+fi
+
+exit 0

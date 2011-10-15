@@ -1,0 +1,202 @@
+#!/bin/bash
+
+# p2pkg - simple script for managing apk test builds on devices.
+# author - Oliver Bartley
+# date 16 SEP 2011
+
+# run p2pkg -h for usage
+
+# import config:
+#BUILDSDIR - location of builds
+#PKGNAME - android package name referenced when uninstalling
+source $HOME/.android-tools.conf
+
+# all calls to adb are run through this wrapper, which uses stoat to select devices
+adb_wrapper() {
+	if [[ "$DEVICETAG" != "" ]]; then
+	        DEVICE=`stoat "$DEVICETAG"`
+	        if [ $? -ne 0 ] || [[ "$DEVICE" == "" ]]; then
+			return 1
+		fi
+		if [[ "$DEBUG" == "true" ]]; then
+			echo "DEBUG: adb -s $DEVICE $@"
+		else
+			if [[ "$(adb -s $DEVICE get-state)" == "unknown" ]]; then
+				return 2
+			else
+				adb -s $DEVICE "$@"
+			fi
+		fi
+	else
+		if [[ "$DEBUG" == "true" ]]; then
+			echo "DEBUG: adb $@"
+		else
+			if [[ "$(adb get-state)" == "unknown" ]]; then
+				return 3
+			else
+				adb "$@"
+			fi
+		fi
+	fi
+	return 0
+}
+
+
+# parse command line options:
+for arg in "$@"; do
+	case "$arg" in
+	"-t")
+		shift
+		DEVICETAG="$1"
+		shift
+		;;
+	"-c")
+		REBOOT="true"
+		shift
+		;;
+	"-r")
+		INSTALL="re"
+		shift
+		;;
+
+	"-u")
+		INSTALL="un"
+		shift
+		;;
+
+	"-n")
+		BUILD="newest"
+		shift
+		;;
+	"-b")
+		DEBUG="true"
+		shift
+		;;
+
+	"-l")
+		adb-stoat -l
+		exit 0
+		;;
+	"-h")
+		echo -e "Usage:"
+		echo -e "p2pkg [-c] [-r] [-u] [-h] [-d TAG] BUILD"
+		echo -e "-c\tReboot (cycle) the device after installing .apk (can be used stand-alone)"
+		echo -e "-r\tInstall .apk without removing data (reinstall or over-the-top upgrade)"
+		echo -e "-u\tUninstall existing .apk"
+		echo -e "-n\tInstall most recent build"
+		echo -e "-b\tDebug mode"
+		echo -e "-h\tshow this message and exit"
+		echo -e "-t TAG\t use stoat to translate an asset tag into a serial number"
+		echo -e "-l\tlist devices attached to adb via stoat"
+		echo
+		echo -e "BUILD\tBuild number, ex 21 or 0.21 (not required with -n switch)"
+		echo
+		echo -e "* Observant users will notice that command line switches currently do NOT stack:"
+  		echo -e "\t-cr is not a valid switch"
+  		echo -e "\t-c -r is the way to be a pro."
+
+		exit 0
+		;;
+	*)
+		# this feels kludgy, but it works
+		if [[ "${1:0:1}" != "-" ]]; then
+			break 
+		fi
+		;;
+	esac
+done
+
+# main process start
+
+# check the status of adb and device lookup
+echo "Checking adb/device status..."
+adb_wrapper get-state 1>/dev/null 2>&1
+case $? in
+	1)	
+		echo -n "stoat could not determine the serial number for the specified device ("
+		printf '%06d' $DEVICETAG
+		echo "). Make sure stoat is properly configured and that the device exists in the lookup table."
+		exit 1
+		;;
+	2)
+		echo -n "The device you specified ("
+		echo -n `stoat -n $DEVICETAG`
+		echo ") is not in a ready state. Check your devices and try again."
+		exit 1
+		;;
+	3)
+		echo "The default device is not in a ready state, or there are multiple devices connected. Check your devices and try again."
+		echo "If there are multiple devices connected, you must specify which one with the -d option"
+		exit 1
+		;;
+	*)
+		if [[ "$DEVICETAG" == "" ]]; then
+			echo "adb ready with default device"
+		else
+			echo -n "adb ready with device  "
+			echo -n `stoat $DEVICETAG`
+			echo -n " ("
+			echo -n `stoat -n $DEVICETAG`
+			echo ")"
+		fi
+		;;
+esac
+
+# if all we need to do is uninstall, do that and bail
+if [[ "$INSTALL" == "un" ]]; then
+	echo "Uninstalling existing build..."
+	adb_wrapper uninstall $PKGNAME;
+	exit 0
+fi
+
+# handle remaining arguments
+if [[ "$BUILD" != "newest" ]]; then
+	if [[ "$1" == "" ]]; then
+		if [[ "$REBOOT" == "true" ]]; then
+			echo "Rebooting device..."
+			adb_wrapper reboot
+			exit 0
+		else
+			echo "Invalid arguments. Build number required without -n switch."	
+			exit 1
+		fi
+	else
+		BUILD="$1"
+	fi
+fi
+
+# some hacky magic to get the path to the right .apk
+# one day I will maybe make this better and not use ls
+if [[ "$BUILD" == "newest" ]]; then
+	APK="$(ls -v $BUILDSDIR | grep '[0-9]$' | sort -t. -k4g | tail -n 1)"
+	APK="$(ls $BUILDSDIR/$APK/*.apk 2>/dev/null)"
+else
+	APK="$(ls -v $BUILDSDIR | grep $BUILD'$' | sort -t. -k4g | head -n 1)"
+	APK="$(ls $BUILDSDIR/$APK/*.apk 2>/dev/null)"
+fi
+
+# check our math to see if we've got a valid apk
+stat $APK 1> /dev/null 2>&1
+if [ $? -eq 0 ]; then
+	if [[ "$INSTALL" == "re" ]]; then
+		echo "Reinstalling selected build: $APK"
+		adb_wrapper install -r $APK
+	else
+		echo "Uninstalling existing build..."
+		adb_wrapper uninstall $PKGNAME;
+		echo "Installing selected build: $APK"
+		adb_wrapper install $APK
+	fi
+
+	if [[ "$REBOOT" == "true" ]]; then
+		echo "Rebooting device..."
+		adb_wrapper reboot
+	fi
+	exit 0
+else
+	echo "Error finding .apk"
+	echo "Make sure $BUILDSDIR is readable"
+	exit 1
+fi
+
+exit 0
