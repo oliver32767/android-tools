@@ -7,11 +7,10 @@ Created on Oct 12, 2011
 from com.android.monkeyrunner import MonkeyRunner, MonkeyDevice
 from time import sleep
 from sys import exit
+from monkeytools import devicePicker
 
-#deviceID = '1000bb29eaa0' #Tab 7
-#deviceID = 'HT0BEP800110' # N1
-deviceID = 'HT0B3HL15137'
-#deviceID = 'emulator-5554'
+deviceID = devicePicker()
+    
 startComponent = 'com.paypal.android.p2pmobile/.activity.GridLauncherActivity'
 
 dev = MonkeyRunner.waitForConnection(10, deviceID)
