@@ -5,6 +5,7 @@ Created on Oct 13, 2011
 '''
 
 from com.android.monkeyrunner import MonkeyRunner, MonkeyDevice
+from stoat import adb
 import commands
 
 
@@ -170,9 +171,7 @@ class EvilMonkey():
                     self.type(ch)
 
                     
-def adb(args):
-    cmd = 'adb ' + args
-    return commands.getoutput(cmd)
+
 
 def devicePicker():
     deviceList = adb('devices')[len('List of devices attached'):].split()
