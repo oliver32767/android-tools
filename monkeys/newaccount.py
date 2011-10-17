@@ -23,6 +23,7 @@ userEmail = MonkeyRunner.input(message = "Enter the new user's email address:", 
 userPassword = MonkeyRunner.input(message = "Enter the new user's password:", initialValue = '11111111')
 userMobile = testUSID[-4:].rjust(4, '0')
 userMobile = MonkeyRunner.input(message = "Enter the new user's phone number:", initialValue = '503467' + userMobile)
+userZIP = MonkeyRunner.input(message = "Enter the new user's ZIP code:", initialValue = '97205')
 
 
 # from the main login screen:
@@ -49,4 +50,4 @@ dev.sequence('d/Portland')
 
 # state and ZIP
 dev.sequence('dc' + 'd' * 46 + 'c,,')
-dev.sequence('d/97025/dc' + ('d' * 7)) # now that is some shorthand!
+dev.sequence('d/' + userZIP + '/dc' + ('d' * 7)) # now that is some shorthand!
